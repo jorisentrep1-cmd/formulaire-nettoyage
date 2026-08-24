@@ -88,6 +88,20 @@ header::before{content:'';position:absolute;top:-30%;right:-10%;width:400px;heig
 .color-swatch.selected{border-color:var(--navy);transform:scale(1.1)}
 .color-swatch.selected::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.4)}
 
+/* PICKER RÉEL DE COULEUR */
+.color-picker-row{display:flex;align-items:center;gap:1rem;margin-bottom:1rem}
+.color-picker-input{width:56px;height:56px;border-radius:10px;border:2px solid var(--border);cursor:pointer;padding:0;background:none;flex-shrink:0}
+.color-picker-input::-webkit-color-swatch-wrapper{padding:3px}
+.color-picker-input::-webkit-color-swatch{border-radius:7px;border:none}
+.color-picker-info{flex:1}
+.color-picker-label{font-size:.72rem;color:var(--text2);font-weight:600;margin-bottom:.3rem}
+.color-picker-hex{font-family:'SF Mono',Consolas,monospace;font-size:.85rem;font-weight:700;color:var(--navy);background:var(--light);border:1.5px solid var(--border);padding:.4rem .7rem;border-radius:5px;width:110px;text-transform:uppercase}
+.color-presets{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem}
+.preset-swatch{width:28px;height:28px;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:all var(--t)}
+.preset-swatch:hover{transform:scale(1.15);border-color:var(--border)}
+.color-preview-bar{height:8px;border-radius:4px;margin-top:1.25rem;overflow:hidden;display:flex}
+.color-preview-half{flex:1}
+
 /* STYLE CARDS */
 .style-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
 .style-card{border:1.5px solid var(--border);border-radius:6px;padding:1rem;cursor:pointer;transition:all var(--t);text-align:center}
@@ -311,18 +325,32 @@ header::before{content:'';position:absolute;top:-30%;right:-10%;width:400px;heig
         <div class="style-card" data-style="Dynamique & Coloré"><div class="style-icon">⚡</div><div class="style-name">Dynamique</div><div class="style-desc">Vif, énergique</div></div>
       </div>
     </div>
-    <div class="fg">
+<div class="fg">
       <label class="fl">Couleur principale</label>
-      <div class="color-grid" id="colorGrid">
-        <div class="color-swatch" style="background:#0f2044" data-color="Bleu marine (#0f2044)"></div>
-        <div class="color-swatch" style="background:#e8700a" data-color="Orange (#e8700a)"></div>
-        <div class="color-swatch" style="background:#15803d" data-color="Vert (#15803d)"></div>
-        <div class="color-swatch" style="background:#b91c1c" data-color="Rouge (#b91c1c)"></div>
-        <div class="color-swatch" style="background:#1e3a8a" data-color="Bleu roi (#1e3a8a)"></div>
-        <div class="color-swatch" style="background:#7c2d92" data-color="Violet (#7c2d92)"></div>
-        <div class="color-swatch" style="background:#0891b2" data-color="Cyan (#0891b2)"></div>
-        <div class="color-swatch" style="background:#525252" data-color="Gris anthracite (#525252)"></div>
+      <div class="color-picker-row">
+        <input type="color" class="color-picker-input" id="colorPrimaryPicker" value="#0f2044" onchange="syncColorHex('primary')" oninput="syncColorHex('primary')"/>
+        <div class="color-picker-info">
+          <div class="color-picker-label">Choisissez votre couleur avec le curseur</div>
+          <input type="text" class="color-picker-hex" id="colorPrimaryHex" value="#0F2044" oninput="syncColorPicker('primary')" maxlength="7"/>
+        </div>
       </div>
+      <div class="color-presets" id="presetsPrimary"></div>
+    </div>
+    <div class="fg">
+      <label class="fl">Couleur secondaire <span class="opt">(pour les accents, boutons...)</span></label>
+      <div class="color-picker-row">
+        <input type="color" class="color-picker-input" id="colorSecondaryPicker" value="#e8700a" onchange="syncColorHex('secondary')" oninput="syncColorHex('secondary')"/>
+        <div class="color-picker-info">
+          <div class="color-picker-label">Choisissez votre couleur avec le curseur</div>
+          <input type="text" class="color-picker-hex" id="colorSecondaryHex" value="#E8700A" oninput="syncColorPicker('secondary')" maxlength="7"/>
+        </div>
+      </div>
+      <div class="color-presets" id="presetsSecondary"></div>
+      <div class="color-preview-bar">
+        <div class="color-preview-half" id="previewPrimary" style="background:#0f2044"></div>
+        <div class="color-preview-half" id="previewSecondary" style="background:#e8700a"></div>
+      </div>
+      <div class="hint">Aperçu de votre combinaison de couleurs ci-dessus</div>
     </div>
     <div class="fg">
       <label class="fl">Votre logo<span class="opt">(optionnel — image PNG/JPG)</span></label>
@@ -420,14 +448,51 @@ document.querySelectorAll('.style-card').forEach(card=>{
   });
 });
 
-// Color selection
-document.querySelectorAll('.color-swatch').forEach(sw=>{
-  sw.addEventListener('click',()=>{
-    document.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected'));
-    sw.classList.add('selected');
-    updateProgress();
+// ── SÉLECTEUR DE COULEUR (principale + secondaire) ──
+const colorPresets = ['#0f2044','#e8700a','#15803d','#b91c1c','#1e3a8a','#7c2d92','#0891b2','#525252','#f59e0b','#ec4899'];
+
+function buildPresets(type){
+  const container = document.getElementById('presets'+(type==='primary'?'Primary':'Secondary'));
+  colorPresets.forEach(hex=>{
+    const sw = document.createElement('div');
+    sw.className = 'preset-swatch';
+    sw.style.background = hex;
+    sw.title = hex;
+    sw.onclick = () => {
+      document.getElementById('color'+(type==='primary'?'Primary':'Secondary')+'Picker').value = hex;
+      document.getElementById('color'+(type==='primary'?'Primary':'Secondary')+'Hex').value = hex.toUpperCase();
+      updateColorPreview();
+    };
+    container.appendChild(sw);
   });
-});
+}
+buildPresets('primary');
+buildPresets('secondary');
+
+function syncColorHex(type){
+  const picker = document.getElementById('color'+(type==='primary'?'Primary':'Secondary')+'Picker');
+  const hexInput = document.getElementById('color'+(type==='primary'?'Primary':'Secondary')+'Hex');
+  hexInput.value = picker.value.toUpperCase();
+  updateColorPreview();
+}
+
+function syncColorPicker(type){
+  const hexInput = document.getElementById('color'+(type==='primary'?'Primary':'Secondary')+'Hex');
+  const picker = document.getElementById('color'+(type==='primary'?'Primary':'Secondary')+'Picker');
+  let val = hexInput.value.trim();
+  if (!val.startsWith('#')) val = '#'+val;
+  if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+    picker.value = val;
+    updateColorPreview();
+  }
+}
+
+function updateColorPreview(){
+  const p = document.getElementById('colorPrimaryPicker').value;
+  const s = document.getElementById('colorSecondaryPicker').value;
+  document.getElementById('previewPrimary').style.background = p;
+  document.getElementById('previewSecondary').style.background = s;
+}
 
 // Progress bar
 function updateProgress(){
@@ -559,8 +624,8 @@ function handleSubmit(){
 
   const styleCard=document.querySelector('.style-card.selected');
   const style=styleCard?styleCard.dataset.style:'Non précisé';
-  const colorSw=document.querySelector('.color-swatch.selected');
-  const couleur=colorSw?colorSw.dataset.color:'Non précisée';
+  const couleurPrincipale=document.getElementById('colorPrimaryHex').value;
+  const couleurSecondaire=document.getElementById('colorSecondaryHex').value;
   const logoLinks = uploadedImages.logo.map(i=>i.url).join('\n') || 'Aucun logo envoyé — à créer à partir du nom';
   const photosLinks = uploadedImages.photos.map((i,idx)=>`  ${idx+1}. ${i.url}`).join('\n') || '  Aucune photo envoyée';
 
@@ -607,7 +672,8 @@ Différenciation : ${diff}
 
 ── 6. STYLE VISUEL ──
 Style préféré : ${style}
-Couleur principale : ${couleur}
+Couleur principale : ${couleurPrincipale}
+Couleur secondaire : ${couleurSecondaire}
 Logo : ${logoLinks}
 Photos (${uploadedImages.photos.length}) :
 ${photosLinks}
