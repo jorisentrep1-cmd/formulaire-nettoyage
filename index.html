@@ -353,6 +353,11 @@ header::before{content:'';position:absolute;top:-30%;right:-10%;width:400px;heig
       <div class="hint">Aperçu de votre combinaison de couleurs ci-dessus</div>
     </div>
     <div class="fg">
+      <label class="fl">Autres suggestions de style<span class="opt">(optionnel)</span></label>
+      <textarea class="ft" id="f-style-libre" placeholder="Ex: J'aimerais quelque chose de très épuré avec beaucoup de blanc, un style qui rappelle tel site que j'aime, une police manuscrite pour le logo, une ambiance vintage..."></textarea>
+      <div class="hint">Décrivez librement toute idée de style, d'ambiance ou de référence qui n'est pas couverte ci-dessus.</div>
+    </div>
+    <div class="fg">
       <label class="fl">Votre logo<span class="opt">(optionnel — image PNG/JPG)</span></label>
       <div class="upload-zone" id="logoZone" onclick="document.getElementById('logoInput').click()">
         <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="handleUpload(this,'logo')"/>
@@ -626,6 +631,7 @@ function handleSubmit(){
   const style=styleCard?styleCard.dataset.style:'Non précisé';
   const couleurPrincipale=document.getElementById('colorPrimaryHex').value;
   const couleurSecondaire=document.getElementById('colorSecondaryHex').value;
+  const styleLibre=document.getElementById('f-style-libre').value||'—';
   const logoLinks = uploadedImages.logo.map(i=>i.url).join('\n') || 'Aucun logo envoyé — à créer à partir du nom';
   const photosLinks = uploadedImages.photos.map((i,idx)=>`  ${idx+1}. ${i.url}`).join('\n') || '  Aucune photo envoyée';
 
@@ -674,6 +680,7 @@ Différenciation : ${diff}
 Style préféré : ${style}
 Couleur principale : ${couleurPrincipale}
 Couleur secondaire : ${couleurSecondaire}
+Suggestions libres de style : ${styleLibre}
 Logo : ${logoLinks}
 Photos (${uploadedImages.photos.length}) :
 ${photosLinks}
