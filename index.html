@@ -6,6 +6,7 @@
 <title>NovaSpot — Formulaire de création de site | Nettoyage & Entretien</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 :root{
   --navy:#0f2044;--orange:#e8700a;--orange2:#f08020;
@@ -51,6 +52,23 @@ header::before{content:'';position:absolute;top:-30%;right:-10%;width:400px;heig
 .ft{resize:vertical;min-height:80px}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
 .hint{font-size:.72rem;color:var(--text3);margin-top:.4rem;line-height:1.5}
+
+/* UPLOAD ZONES */
+.upload-zone{border:2px dashed var(--border);border-radius:6px;padding:1.5rem;cursor:pointer;transition:all var(--t);background:var(--light)}
+.upload-zone:hover{border-color:var(--orange);background:rgba(232,112,10,.03)}
+.upload-zone.dragover{border-color:var(--orange);background:rgba(232,112,10,.06)}
+.upload-placeholder{display:flex;flex-direction:column;align-items:center;gap:.5rem;text-align:center;pointer-events:none}
+.upload-icon{font-size:1.8rem}
+.upload-text{font-size:.78rem;color:var(--text2);font-weight:500}
+.upload-preview-list{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.75rem}
+.upload-preview-list:empty{margin-top:0}
+.upload-item{position:relative;width:70px;height:70px;border-radius:6px;overflow:hidden;border:1.5px solid var(--border);background:#fff}
+.upload-item img{width:100%;height:100%;object-fit:cover;display:block}
+.upload-item.uploading img{opacity:.4}
+.upload-spinner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.65rem;color:var(--orange);background:rgba(255,255,255,.7)}
+.upload-remove{position:absolute;top:2px;right:2px;width:18px;height:18px;background:rgba(0,0,0,.6);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;cursor:pointer;border:none}
+.upload-remove:hover{background:#ef4444}
+.upload-error{font-size:.68rem;color:#ef4444;margin-top:.5rem}
 
 /* CHECKBOX GRID */
 .check-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
@@ -307,16 +325,28 @@ header::before{content:'';position:absolute;top:-30%;right:-10%;width:400px;heig
       </div>
     </div>
     <div class="fg">
-      <label class="fl">Logo disponible ?</label>
-      <select class="fs" id="f-logo">
-        <option value="">Sélectionnez...</option>
-        <option>Oui, je l'enverrai séparément</option>
-        <option>Non, créez-en un simple à partir du nom</option>
-      </select>
+      <label class="fl">Votre logo<span class="opt">(optionnel — image PNG/JPG)</span></label>
+      <div class="upload-zone" id="logoZone" onclick="document.getElementById('logoInput').click()">
+        <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="handleUpload(this,'logo')"/>
+        <div class="upload-placeholder" id="logoPlaceholder">
+          <span class="upload-icon">🖼️</span>
+          <span class="upload-text">Cliquez pour déposer votre logo</span>
+        </div>
+        <div class="upload-preview-list" id="logoPreview"></div>
+      </div>
+      <div class="hint" id="logoHint">Pas de logo ? On peut vous en créer un simple à partir du nom de votre entreprise.</div>
     </div>
     <div class="fg">
-      <label class="fl">Photos disponibles ?<span class="opt">(optionnel)</span></label>
-      <textarea class="ft" id="f-photos" placeholder="Ex: J'ai des photos de l'équipe et des chantiers, je les enverrai par email"></textarea>
+      <label class="fl">Photos de l'entreprise<span class="opt">(optionnel — équipe, chantiers, véhicules...)</span></label>
+      <div class="upload-zone" id="photosZone" onclick="document.getElementById('photosInput').click()">
+        <input type="file" id="photosInput" accept="image/*" multiple style="display:none" onchange="handleUpload(this,'photos')"/>
+        <div class="upload-placeholder" id="photosPlaceholder">
+          <span class="upload-icon">📷</span>
+          <span class="upload-text">Cliquez pour déposer une ou plusieurs photos</span>
+        </div>
+        <div class="upload-preview-list" id="photosPreview"></div>
+      </div>
+      <div class="hint">Formats acceptés : JPG, PNG. 5 Mo max par image.</div>
     </div>
   </div>
 
@@ -355,16 +385,17 @@ header::before{content:'';position:absolute;top:-30%;right:-10%;width:400px;heig
 
   <!-- SUBMIT -->
   <div class="submit-card">
-    <div class="submit-title">Prêt à envoyer votre demande ?</div>
-    <p class="submit-sub">Générez le résumé et envoyez-le à votre contact NovaSpot. Votre site sera créé sous 48h.</p>
-    <button class="btn-submit" onclick="generateResume()">Générer mon résumé →</button>
+    <div class="submit-title" id="submitTitle">Prêt à envoyer votre demande ?</div>
+    <p class="submit-sub" id="submitSub">Votre demande est envoyée directement à NovaSpot. Votre site sera créé sous 48h.</p>
+    <button class="btn-submit" id="submitBtn" onclick="handleSubmit()">Envoyer ma demande →</button>
   </div>
 
   <!-- RESULT -->
   <div class="result-wrap" id="resultWrap">
-    <div class="result-header">✓ Résumé généré avec succès</div>
+    <div class="result-header" id="resultHeader">✓ Demande envoyée avec succès</div>
+    <p style="font-size:.82rem;color:var(--text2);line-height:1.7;margin-bottom:1.25rem" id="resultMsg">Votre demande a bien été transmise à NovaSpot. Vous serez recontacté sous 24h pour finaliser votre site.</p>
     <div class="result-box" id="resultBox"></div>
-    <button class="btn-copy" id="copyBtn" onclick="copyResult()">📋 Copier le résumé</button>
+    <button class="btn-copy" id="copyBtn" onclick="copyResult()">📋 Copier le résumé (sauvegarde)</button>
   </div>
 
 </div>
@@ -410,7 +441,94 @@ function updateProgress(){
   document.getElementById('progressText').textContent=pct+'% complété';
 }
 
-function generateResume(){
+// ── CONFIGURATION UPLOAD IMAGES (imgbb) ──
+const IMGBB_API_KEY = 'VOTRE_IMGBB_API_KEY'; // Clé gratuite sur https://api.imgbb.com/
+
+const uploadedImages = { logo: [], photos: [] };
+
+function handleUpload(input, type){
+  const files = [...input.files];
+  if (!files.length) return;
+
+  if (IMGBB_API_KEY === 'VOTRE_IMGBB_API_KEY') {
+    alert('L\'upload d\'images n\'est pas encore configuré (clé imgbb manquante). Contactez le développeur du formulaire.');
+    return;
+  }
+
+  const previewList = document.getElementById(type+'Preview');
+  const placeholder = document.getElementById(type+'Placeholder');
+
+  files.forEach(file => {
+    if (file.size > 5 * 1024 * 1024) {
+      alert(`"${file.name}" dépasse 5 Mo et ne sera pas envoyé.`);
+      return;
+    }
+
+    const itemId = 'img_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    const item = document.createElement('div');
+    item.className = 'upload-item uploading';
+    item.id = itemId;
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      item.innerHTML = `<img src="${e.target.result}"/><div class="upload-spinner">…</div><button class="upload-remove" onclick="event.stopPropagation();removeUpload('${itemId}','${type}')">×</button>`;
+    };
+    reader.readAsDataURL(file);
+    previewList.appendChild(item);
+    placeholder.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+      method: 'POST',
+      body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        const url = data.data.url;
+        uploadedImages[type].push({ name: file.name, url });
+        const spinner = item.querySelector('.upload-spinner');
+        if (spinner) spinner.remove();
+        item.classList.remove('uploading');
+      } else {
+        throw new Error('Échec upload');
+      }
+    })
+    .catch(() => {
+      item.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#ef4444;text-align:center;padding:.3rem">Erreur</div><button class="upload-remove" onclick="event.stopPropagation();removeUpload('${itemId}','${type}')">×</button>`;
+    });
+  });
+
+  input.value = '';
+}
+
+function removeUpload(itemId, type){
+  const el = document.getElementById(itemId);
+  if (el) {
+    const idx = [...el.parentElement.children].indexOf(el);
+    uploadedImages[type].splice(idx, 1);
+    el.remove();
+  }
+  const previewList = document.getElementById(type+'Preview');
+  if (!previewList.children.length) {
+    document.getElementById(type+'Placeholder').style.display = 'flex';
+  }
+}
+
+// ── CONFIGURATION EMAILJS ──
+// Remplacez ces 3 valeurs par les vôtres (voir instructions fournies)
+const EMAILJS_PUBLIC_KEY = 'IENEk0fXfBBkXFNwj';
+const EMAILJS_SERVICE_ID = 'service_5jg5lod';
+const EMAILJS_TEMPLATE_ID = 'template_9fnztax';
+const NOVASPOT_EMAIL = 'contact@novaspot.fr'; // email qui reçoit les demandes
+
+if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY !== 'VOTRE_PUBLIC_KEY') {
+  emailjs.init(EMAILJS_PUBLIC_KEY);
+}
+
+function handleSubmit(){
   const nom=document.getElementById('f-nom').value.trim();
   const adresse=document.getElementById('f-adresse').value.trim();
   const cp=document.getElementById('f-cp').value.trim();
@@ -443,8 +561,8 @@ function generateResume(){
   const style=styleCard?styleCard.dataset.style:'Non précisé';
   const colorSw=document.querySelector('.color-swatch.selected');
   const couleur=colorSw?colorSw.dataset.color:'Non précisée';
-  const logo=document.getElementById('f-logo').value||'—';
-  const photos=document.getElementById('f-photos').value||'—';
+  const logoLinks = uploadedImages.logo.map(i=>i.url).join('\n') || 'Aucun logo envoyé — à créer à partir du nom';
+  const photosLinks = uploadedImages.photos.map((i,idx)=>`  ${idx+1}. ${i.url}`).join('\n') || '  Aucune photo envoyée';
 
   const subdomain=document.getElementById('f-subdomain').value||'(à définir)';
   const plan=document.getElementById('f-plan').value||'À définir ensemble';
@@ -490,8 +608,9 @@ Différenciation : ${diff}
 ── 6. STYLE VISUEL ──
 Style préféré : ${style}
 Couleur principale : ${couleur}
-Logo disponible : ${logo}
-Photos disponibles : ${photos}
+Logo : ${logoLinks}
+Photos (${uploadedImages.photos.length}) :
+${photosLinks}
 
 ── 7. TECHNIQUE ──
 Sous-domaine souhaité : ${subdomain}.novaspot.fr
@@ -505,8 +624,48 @@ Généré le ${new Date().toLocaleDateString('fr-FR')} via le formulaire NovaSpo
 ═══════════════════════════════════`;
 
   document.getElementById('resultBox').textContent=resume;
-  document.getElementById('resultWrap').classList.add('active');
-  document.getElementById('resultWrap').scrollIntoView({behavior:'smooth',block:'start'});
+
+  const btn=document.getElementById('submitBtn');
+  const originalText=btn.textContent;
+  btn.textContent='Envoi en cours...';
+  btn.disabled=true;
+
+  // Si EmailJS n'est pas configuré, on affiche juste le résumé (mode dégradé)
+  if (typeof emailjs === 'undefined' || EMAILJS_PUBLIC_KEY === 'VOTRE_PUBLIC_KEY') {
+    console.warn('EmailJS non configuré — affichage du résumé uniquement.');
+    document.getElementById('resultHeader').textContent = '✓ Résumé généré';
+    document.getElementById('resultMsg').textContent = 'EmailJS n\'est pas encore configuré. Copiez ce résumé et envoyez-le manuellement.';
+    document.getElementById('resultWrap').classList.add('active');
+    document.getElementById('resultWrap').scrollIntoView({behavior:'smooth',block:'start'});
+    btn.textContent=originalText;
+    btn.disabled=false;
+    return;
+  }
+
+  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+    to_email: NOVASPOT_EMAIL,
+    from_name: nom,
+    from_email: email,
+    from_phone: tel,
+    subject: `Nouvelle demande de site — ${nom}`,
+    message: resume
+  }).then(() => {
+    document.getElementById('resultHeader').textContent = '✓ Demande envoyée avec succès';
+    document.getElementById('resultMsg').textContent = 'Votre demande a bien été transmise à NovaSpot. Vous serez recontacté sous 24h pour finaliser votre site.';
+    document.getElementById('resultWrap').classList.add('active');
+    document.getElementById('resultWrap').scrollIntoView({behavior:'smooth',block:'start'});
+    btn.textContent='✓ Demande envoyée';
+    document.querySelector('.submit-card').style.opacity='0.6';
+  }).catch((err) => {
+    console.error('Erreur EmailJS:', err);
+    alert('Une erreur est survenue lors de l\'envoi. Merci de copier le résumé et de nous l\'envoyer par email directement.');
+    document.getElementById('resultHeader').textContent = '⚠ Erreur d\'envoi — résumé disponible';
+    document.getElementById('resultMsg').textContent = 'L\'envoi automatique a échoué. Copiez ce résumé et envoyez-le manuellement à contact@novaspot.fr';
+    document.getElementById('resultWrap').classList.add('active');
+    document.getElementById('resultWrap').scrollIntoView({behavior:'smooth',block:'start'});
+    btn.textContent=originalText;
+    btn.disabled=false;
+  });
 }
 
 function copyResult(){
